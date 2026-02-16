@@ -1,0 +1,9 @@
+[project]
+name = "claude-code-history-viewer"
+version = "0.1.0"
+description = "A simple TUI for browsing your Claude Code session prompts"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "textual>=8.0.0",
+]
