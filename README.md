@@ -10,31 +10,36 @@ uv sync
 
 ## Usage
 
-Point it at a directory containing Claude Code `.jsonl` session files:
+### Interactive project picker (default)
+
+Run with no arguments and it will find all your Claude Code projects in
+`~/.claude/projects/` and ask you to choose one:
 
 ```bash
-uv run python viewer.py ~/.claude/projects/-Users-you-your-project/
+uv run python viewer.py
 ```
 
-Claude Code stores session history as JSONL files in `~/.claude/projects/`. Each project gets its own subdirectory with a mangled path name. For example:
-
 ```
-~/.claude/projects/
-  -Users-you-myapp/
-    a1b2c3d4-...jsonl
-    e5f6a7b8-...jsonl
-    memory/
-  -Users-you-other-project/
-    ...
+Claude Code projects found:
+
+   1. ~/Desktop/coding_playground/myapp
+   2. ~/Desktop/other-project
+   3. ~/work/some-api
+
+Choose a project [1-3]:
 ```
 
-To find your project directories:
+### By project name
+
+Pass `-p` with a partial project name and it will match against your projects:
 
 ```bash
-ls ~/.claude/projects/
+uv run python viewer.py -p myapp
 ```
 
-Then pass the one you want:
+### By directory path
+
+Pass a path directly if you know it:
 
 ```bash
 uv run python viewer.py ~/.claude/projects/-Users-you-myapp/
@@ -51,4 +56,4 @@ uv run python viewer.py ~/.claude/projects/-Users-you-myapp/
 | `n` | Sort by natural order |
 | `q` | Quit |
 
-Use the search box at the top to filter prompts by text content.
+Type in the search box at the top to filter prompts by text content.

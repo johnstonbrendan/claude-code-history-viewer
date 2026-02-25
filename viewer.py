@@ -248,19 +248,101 @@ class HistoryViewer(App):
         self.rebuild_list()
 
 
-def main():
-    if len(sys.argv) > 1:
-        history_dir = Path(sys.argv[1])
-    else:
-        history_dir = Path("example_history")
-    if not history_dir.is_dir():
-        print(f"Error: {history_dir} is not a directory")
+CLAUDE_PROJECTS_DIR = Path.home() / ".claude" / "projects"
+
+
+def discover_projects() -> list[tuple[str, Path]]:
+    """Return (display_name, path) pairs for all projects in ~/.claude/projects/."""
+    if not CLAUDE_PROJECTS_DIR.is_dir():
+        return []
+    projects = []
+    username = Path.home().name
+    for d in sorted(CLAUDE_PROJECTS_DIR.iterdir()):
+        if not d.is_dir() or d.name == "memory":
+            continue
+        # Mangle: /Users/you/foo/bar -> -Users-you-foo-bar
+        # Strip the home-dir prefix; leave the rest as-is to avoid
+        # misinterpreting hyphens in real folder names as path separators.
+        name = d.name
+        prefix = f"-Users-{username}-"
+        display = name[len(prefix):] if name.startswith(prefix) else name
+        projects.append((display, d))
+    return projects
+
+
+def pick_project_interactive(projects: list[tuple[str, Path]]) -> Path:
+    """Print a numbered list and ask the user to pick one."""
+    print("Claude Code projects found:\n")
+    for i, (name, _) in enumerate(projects, 1):
+        print(f"  {i:2}. {name}")
+    print()
+    while True:
+        try:
+            raw = input(f"Choose a project [1-{len(projects)}]: ").strip()
+            idx = int(raw) - 1
+            if 0 <= idx < len(projects):
+                return projects[idx][1]
+        except (ValueError, EOFError):
+            pass
+        print(f"Please enter a number between 1 and {len(projects)}.")
+
+
+def find_project_by_name(name: str, projects: list[tuple[str, Path]]) -> Path | None:
+    """Fuzzy-match a project name against the display names."""
+    name_lower = name.lower()
+    # Exact match first
+    for display, path in projects:
+        if name_lower == display.lower():
+            return path
+    # Substring match
+    matches = [(display, path) for display, path in projects if name_lower in display.lower()]
+    if len(matches) == 1:
+        return matches[0][1]
+    if len(matches) > 1:
+        print(f"Ambiguous project name '{name}'. Matches:")
+        for display, _ in matches:
+            print(f"  {display}")
         sys.exit(1)
+    return None
+
+
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Browse Claude Code session prompts")
+    parser.add_argument("directory", nargs="?", help="Path to a session directory")
+    parser.add_argument("-p", "--project", help="Project name to look up in ~/.claude/projects/")
+    args = parser.parse_args()
+
+    if args.directory:
+        history_dir = Path(args.directory)
+        if not history_dir.is_dir():
+            print(f"Error: {history_dir} is not a directory")
+            sys.exit(1)
+    elif args.project:
+        projects = discover_projects()
+        if not projects:
+            print(f"No projects found in {CLAUDE_PROJECTS_DIR}")
+            sys.exit(1)
+        history_dir = find_project_by_name(args.project, projects)
+        if history_dir is None:
+            print(f"No project matching '{args.project}' found.")
+            print("Available projects:")
+            for display, _ in projects:
+                print(f"  {display}")
+            sys.exit(1)
+    else:
+        projects = discover_projects()
+        if not projects:
+            print(f"No projects found in {CLAUDE_PROJECTS_DIR}")
+            sys.exit(1)
+        history_dir = pick_project_interactive(projects)
+
     prompts = parse_sessions(history_dir)
     if not prompts:
         print("No user prompts found in the history files.")
         sys.exit(1)
-    print(f"Loaded {len(prompts)} prompts from {history_dir}")
+    print(f"Loaded {len(prompts)} prompts.")
     app = HistoryViewer(prompts)
     app.run()
 
